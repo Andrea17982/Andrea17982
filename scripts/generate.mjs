@@ -72,7 +72,13 @@ Z 11111 00001 00010 00100 01000 10000 11111
 * 00100 10101 01110 11111 01110 10101 00100
 & 01100 10010 10100 01000 10101 10010 01101
 _ 00000 00000 00000 00000 00000 00000 11111
-~ 00000 00000 00000 00100 00000 00000 00000`
+~ 00000 00000 00000 00100 00000 00000 00000
+= 00000 00000 11111 00000 11111 00000 00000
+" 01010 01010 01010 00000 00000 00000 00000
+[ 01110 01000 01000 01000 01000 01000 01110
+] 01110 00010 00010 00010 00010 00010 01110
+; 00000 01100 01100 00000 01100 00100 01000
+@ 01110 10001 10111 10101 10111 10000 01110`
     .split('\n')
     .map((l) => [l[0], l.slice(2).split(' ')]),
 );
@@ -163,23 +169,55 @@ function svg(h, body, css = '') {
 }
 
 // ------------------------------------------------------------------- header
+// Time of day in Italy when the images are generated, and a day counter for the daily enemy.
+const NOW = Object.fromEntries(
+  new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Rome', hour: '2-digit', hour12: false, year: 'numeric', month: '2-digit', day: '2-digit' })
+    .formatToParts(new Date()).map((p) => [p.type, +p.value]),
+);
+const HOUR = NOW.hour % 24;
+const PHASE = process.env.PROFILE_PHASE || (HOUR < 5 ? 'night' : HOUR < 8 ? 'dawn' : HOUR < 17 ? 'day' : HOUR < 20 ? 'dusk' : 'night');
+const DAY = Math.floor(Date.UTC(NOW.year, NOW.month - 1, NOW.day) / 864e5);
+
+const SKIES = {
+  night: { sky: ['#0c0b12', '#100e19', '#151322', '#1a182c', '#201c34', '#282038', '#32243a'], mount: '#15131d', trees: ['#0d1713', '#14231b'],
+    ground: ['#131b15', '#162018', '#19251b', '#1c2a1e', '#1f2f21'], grass: ['#3d5a34', '#0f1a12'], path: ['#2c261d', '#1a1712', '#3a3226', '#221d16'],
+    stars: 70, orb: 'moon', flies: true, smoke: '#2a2636' },
+  dawn: { sky: ['#1a1830', '#2a2040', '#45294a', '#6b3348', '#94483f', '#b8663c', '#d49a55'], mount: '#2a1c33', trees: ['#141a1c', '#1d2826'],
+    ground: ['#1a2419', '#1e2a1c', '#22301f', '#263622', '#2a3c25'], grass: ['#4d6a3c', '#152016'], path: ['#3a3022', '#221c14', '#4a3e2c', '#2c2419'],
+    stars: 14, orb: 'sunrise', flies: false, smoke: '#4a3348' },
+  day: { sky: ['#27384a', '#2f4456', '#3a5161', '#48606b', '#5a7072', '#6f8078', '#8a9080'], mount: '#34444a', trees: ['#17261c', '#223526'],
+    ground: ['#22331f', '#283b23', '#2e4327', '#344b2b', '#3a532f'], grass: ['#6f9a4a', '#1a2a18'], path: ['#5a4a33', '#33291c', '#6e5c40', '#463a28'],
+    stars: 0, orb: 'sun', flies: false, smoke: '#5a6670' },
+  dusk: { sky: ['#15132a', '#221a3a', '#3a2046', '#5c2746', '#84333c', '#a8482f', '#c9743a'], mount: '#1e1530', trees: ['#0f1416', '#182020'],
+    ground: ['#161f17', '#19241a', '#1c291d', '#1f2e20', '#223323'], grass: ['#44603a', '#111b13'], path: ['#33291e', '#1d1812', '#42362a', '#281f17'],
+    stars: 30, orb: 'moon', flies: true, smoke: '#3a2a44' },
+};
+
+// One of these shows up in the header every day.
+const ENEMIES = [
+  { sprite: 'slime-fire-idle', name: 'Fire Slime' }, { sprite: 'bat-idle', name: 'Bat', flies: true },
+  { sprite: 'frog-idle', name: 'Frog' }, { sprite: 'slime-water-idle', name: 'Water Slime' },
+  { sprite: 'beetle-idle', name: 'Beetle' }, { sprite: 'salamander-idle', name: 'Salamander' },
+  { sprite: 'big-bat-idle', name: 'Big Bat', flies: true }, { sprite: 'giant-frog-idle', name: 'Giant Frog' },
+  { sprite: 'corrupted-beetle-idle', name: 'Corrupted Beetle' }, { sprite: 'little-salamander-idle', name: 'Little Salamander' },
+  { sprite: 'big-slime-idle', name: 'Big Slime' },
+];
+const ENEMY = ENEMIES[(process.env.PROFILE_ENEMY ? +process.env.PROFILE_ENEMY : DAY) % ENEMIES.length];
+
 function header() {
-  const H = 150, HORIZON = 100;
+  const H = 150, HORIZON = 100, K = SKIES[PHASE];
   const rand = rng(11);
   let b = '';
-  const sky = ['#0c0b12', '#100e19', '#151322', '#1a182c', '#201c34', '#282038', '#32243a'];
-  const bh = HORIZON / sky.length;
-  sky.forEach((c, i) => {
+  const bh = HORIZON / K.sky.length;
+  K.sky.forEach((c, i) => {
     const y = Math.floor(i * bh);
     b += R(0, y, W, Math.ceil(bh) + 1, c);
     if (i) for (let x = 0; x < W; x += 4) b += R(x, y - 1, 2, 1, c); // dither between bands
   });
-  // stars
   for (let i = 0; i < 70; i++) {
-    const x = Math.floor(rand() * W), y = Math.floor(rand() * rand() * 80);
-    b += R(x, y, 1, 1, rand() > 0.6 ? '#9fa7c9' : P.bone, ` class="tw" style="animation-delay:${-(rand() * 6).toFixed(1)}s"`);
+    const x = Math.floor(rand() * W), y = Math.floor(rand() * rand() * 80), blue = rand() > 0.6, delay = (rand() * 6).toFixed(1);
+    if (i < K.stars) b += R(x, y, 1, 1, blue ? '#9fa7c9' : P.bone, ` class="tw" style="animation-delay:-${delay}s"`);
   }
-  // moon
   const disc = (cx, cy, r, f) => {
     let s = '';
     for (let y = -r; y <= r; y++) {
@@ -188,7 +226,11 @@ function header() {
     }
     return s;
   };
-  b += disc(372, 28, 10, P.bone) + disc(368, 25, 2, '#b9ab88') + disc(377, 33, 1, '#b9ab88') + R(374, 22, 2, 1, '#b9ab88');
+  if (K.orb === 'moon') b += disc(372, 28, 10, P.bone) + disc(368, 25, 2, '#b9ab88') + disc(377, 33, 1, '#b9ab88') + R(374, 22, 2, 1, '#b9ab88');
+  else {
+    const y = K.orb === 'sunrise' ? 84 : 28;
+    b += disc(372, y, 12, '#f0d58a') + disc(372, y, 9, P.gold) + disc(370, y - 2, 4, '#f6e2a6');
+  }
   // far mountains + a volcano (hello, Mt. Chimney)
   let d = `M0 ${HORIZON}`;
   for (let x = 0; x <= W; x += 2) {
@@ -196,49 +238,50 @@ function header() {
     const cone = Math.min(34, 38 - Math.abs(x - 300) * 0.7);
     d += `V${HORIZON - Math.round(Math.max(ridge, cone))}h2`;
   }
-  b += `<path fill="#15131d" d="${d}V${HORIZON}z"/>` + R(295, HORIZON - 34, 11, 1, P.red) + R(296, HORIZON - 33, 9, 1, P.brick);
+  b += `<path fill="${K.mount}" d="${d}V${HORIZON}z"/>` + R(295, HORIZON - 34, 11, 1, P.red) + R(296, HORIZON - 33, 9, 1, P.brick);
   for (let i = 0; i < 3; i++)
-    b += `<g class="smoke" style="animation-delay:${-i * 2}s">${disc(300, HORIZON - 40, 3, '#2a2636')}</g>`;
-  // ground
-  ['#131b15', '#162018', '#19251b', '#1c2a1e', '#1f2f21'].forEach((c, i) => (b += R(0, HORIZON + i * 10, W, 11, c)));
-  b += R(0, 127, W, 13, '#2c261d') + R(0, 127, W, 1, '#1a1712') + R(0, 139, W, 1, '#1a1712');
-  for (let i = 0; i < 60; i++) b += R(Math.floor(rand() * W), 128 + Math.floor(rand() * 11), 2, 1, rand() > 0.5 ? '#3a3226' : '#221d16');
+    b += `<g class="smoke" style="animation-delay:${-i * 2}s">${disc(300, HORIZON - 40, 3, K.smoke)}</g>`;
+  // ground + dirt path
+  K.ground.forEach((c, i) => (b += R(0, HORIZON + i * 10, W, 11, c)));
+  b += R(0, 127, W, 13, K.path[0]) + R(0, 127, W, 1, K.path[1]) + R(0, 139, W, 1, K.path[1]);
+  for (let i = 0; i < 60; i++) b += R(Math.floor(rand() * W), 128 + Math.floor(rand() * 11), 2, 1, rand() > 0.5 ? K.path[2] : K.path[3]);
   // tree line
   for (let x = -4; x < W + 8; x += 9 + Math.floor(rand() * 5)) {
     const h = 12 + Math.floor(rand() * 10), base = HORIZON + 2 + Math.floor(rand() * 2);
     for (let r = 0; r < h; r++) {
       const half = 1 + Math.floor((r % 5) * 0.7 + r * 0.2);
-      b += R(x - half, base - h + r, half * 2 + 1, 1, '#0d1713') + R(x - half, base - h + r, Math.max(1, half - 1), 1, '#14231b');
+      b += R(x - half, base - h + r, half * 2 + 1, 1, K.trees[0]) + R(x - half, base - h + r, Math.max(1, half - 1), 1, K.trees[1]);
     }
   }
   // grass tufts (half of them sway)
   let still = '', sway = '';
   for (let i = 0; i < 150; i++) {
     const t = Math.pow(rand(), 1.3), x = Math.floor(rand() * W), y = Math.round(HORIZON + 6 + t * 42);
+    const s = 1 + Math.floor(t * 2.5), c = K.grass[rand() > 0.5 ? 0 : 1], swaying = rand() > 0.5;
     if (y > 122 && y < 142) continue; // keep the path clear
-    const s = 1 + Math.floor(t * 2.5), c = rand() > 0.5 ? '#3d5a34' : '#0f1a12';
     const g = R(x, y - s, 1, s + 1, c) + R(x - s, y - s - 1, 1, s, c) + R(x + s, y - s - 1, 1, s, c) + R(x - 1, y - 1, 3, 1, c);
-    if (rand() > 0.5) sway += g; else still += g;
+    if (swaying) sway += g; else still += g;
   }
   b += still + `<g class="sway">${sway}</g>`;
-  // fireflies
-  for (let i = 0; i < 9; i++)
-    b += R(Math.floor(rand() * W), 104 + Math.floor(rand() * 40), 1, 1, '#d9e27a', ` class="fly" style="animation-delay:${-(rand() * 5).toFixed(1)}s"`);
-  // the encounter
-  b += put('warrior-idle', 26, 48) + put('slime-fire-idle', 292, 51, { delay: 0.3 }) +
-    `<g class="bob">${put('bat-idle', 222, 22, { fps: 11 })}</g>`;
-  // title
+  for (let i = 0; i < 9; i++) {
+    const x = Math.floor(rand() * W), y = 104 + Math.floor(rand() * 40), delay = (rand() * 5).toFixed(1);
+    if (K.flies) b += R(x, y, 1, 1, '#d9e27a', ` class="fly" style="animation-delay:-${delay}s"`);
+  }
+  // today's encounter
+  b += put('warrior-idle', 26, 48);
+  b += ENEMY.flies
+    ? `<g class="bob">${put(ENEMY.sprite, 286, 26, { fps: 11 })}</g>`
+    : put(ENEMY.sprite, 290, 51, { delay: 0.3 });
   b += shadowText('Andrea Nastro', W / 2, 12, P.gold, P.brick, 3, 'c');
   b += shadowText('Software developer ~ Indie game dev', W / 2, 42, P.bone, P.black, 1, 'c');
 
-  const names = ['warrior-idle', 'slime-fire-idle', 'bat-idle'];
-  const { defs, css } = spriteDefs(names);
+  const { defs, css } = spriteDefs(['warrior-idle', ENEMY.sprite]);
   return svg(H, defs + b, css +
-    `.tw{animation:tw 6s step-end infinite}@keyframes tw{0%{opacity:1}80%{opacity:.25}90%{opacity:1}}` +
-    `.sway{animation:sway 1.2s steps(2) infinite}@keyframes sway{to{transform:translateX(2px)}}` +
-    `.fly{animation:fly 5s step-end infinite}@keyframes fly{0%{opacity:1}35%{opacity:0}70%{opacity:1;transform:translate(3px,-2px)}}` +
-    `.bob{animation:bob 1.6s steps(4) infinite alternate}@keyframes bob{to{transform:translateY(6px)}}` +
-    `.smoke{animation:smoke 6s steps(12) infinite}@keyframes smoke{from{opacity:.9}to{transform:translate(22px,-26px);opacity:0}}`);
+    '.tw{animation:tw 6s step-end infinite}@keyframes tw{0%{opacity:1}80%{opacity:.25}90%{opacity:1}}' +
+    '.sway{animation:sway 1.2s steps(2) infinite}@keyframes sway{to{transform:translateX(2px)}}' +
+    '.fly{animation:fly 5s step-end infinite}@keyframes fly{0%{opacity:1}35%{opacity:0}70%{opacity:1;transform:translate(3px,-2px)}}' +
+    '.bob{animation:bob 1.6s steps(4) infinite alternate}@keyframes bob{to{transform:translateY(6px)}}' +
+    '.smoke{animation:smoke 6s steps(12) infinite}@keyframes smoke{from{opacity:.9}to{transform:translate(22px,-26px);opacity:0}}');
 }
 
 // ------------------------------------------------------------------- dialog
@@ -362,6 +405,66 @@ function questLumen() {
   return svg(H, b);
 }
 
+/** Text with *highlighted* words. */
+function rich(line, x, y) {
+  let out = '', cx = x;
+  line.split('*').forEach((part, i) => {
+    out += text(part, cx, y, i % 2 ? P.gold : P.bone);
+    cx += part.length * 6;
+  });
+  return out;
+}
+function about(lines) {
+  const H = lines.length * 11 + 22;
+  let b = frame(4, 2, W - 8, H - 4);
+  lines.forEach((line, i) => (b += rich(line, 16, 13 + i * 11)));
+  return svg(H, b);
+}
+// [abbreviation, name, brand colour]
+const INVENTORY = [
+  ['Games', [['GD', 'Godot', '#478cbf'], ['AS', 'Aseprite', '#7d929e']]],
+  ['Web', [['TS', 'TypeScript', '#3178c6'], ['RE', 'React', '#61dafb'], ['A', 'Astro', '#ff5d01'], ['3D', 'Three.js', '#d8c9a3']]],
+  ['Desktop & systems', [['RS', 'Rust', '#dea584'], ['TA', 'Tauri', '#24c8db'], ['C++', 'C++', '#00599c']]],
+  ['Tools', [['GIT', 'Git', '#f05032'], ['GA', 'GH Actions', '#2088ff']]],
+];
+function inventory() {
+  const ROW = 38, H = INVENTORY.length * ROW + 14;
+  let b = frame(4, 2, W - 8, H - 4);
+  INVENTORY.forEach(([slot, items], r) => {
+    const y = 10 + r * ROW;
+    if (r) b += R(14, y - 3, W - 28, 1, P.ink);
+    b += text(slot, 16, y + 10, P.ochre);
+    items.forEach(([abbr, name, color], i) => {
+      const cx = 160 + i * 70; // centre of the slot
+      // item tile: dark outline, brand colour, light top edge, shaded bottom
+      b += R(cx - 10, y, 20, 20, P.black) + R(cx - 11, y + 1, 22, 18, P.black) + R(cx - 10, y + 1, 20, 18, color) +
+        R(cx - 10, y + 1, 20, 1, 'rgba(255,255,255,.35)') + R(cx - 10, y + 17, 20, 2, 'rgba(0,0,0,.25)');
+      const lum = parseInt(color.slice(1, 3), 16) * 0.3 + parseInt(color.slice(3, 5), 16) * 0.59 + parseInt(color.slice(5, 7), 16) * 0.11;
+      b += text(abbr, cx, y + 7, lum > 110 ? P.black : P.bone, 1, 'c') + text(name, cx, y + 24, P.bone, 1, 'c');
+    });
+  });
+  return svg(H, b);
+}
+function questLog(entries) {
+  const ROW = 24, H = 26 + Math.max(1, entries.length) * ROW + 6;
+  let b = frame(4, 2, W - 8, H - 4, { band: P.moss });
+  b += text('Quest log ~ latest public activity', 16, 12, P.ochre) + R(14, 22, W - 28, 1, P.ink);
+  if (!entries.length) b += text('Nothing here yet. The party is resting.', 16, 32, P.dim);
+  entries.forEach((e, i) => {
+    const y = 30 + i * ROW;
+    b += text('>', 16, y, P.red) + text(e.name.slice(0, 40), 26, y, P.gold) + text(e.date, W - 16, y, P.dim, 1, 'r');
+    b += text(e.message.length > 62 ? e.message.slice(0, 59) + '...' : e.message, 26, y + 11, P.bone);
+  });
+  return svg(H, b);
+}
+function footer() {
+  const H = 62;
+  let b = frame(4, 12, 304, 46) + frame(314, 2, 102, 56, { band: P.steel });
+  b += text('Thanks for playing.', 16, 24, P.bone) + text('Would you like to save the game?', 16, 38, P.bone);
+  b += text('>', 328, 16, P.red).replace('<path', '<path class="cur"') + text('Yes', 340, 16, P.gold) + text('No', 340, 34, P.dim);
+  return svg(H, b, '.cur{animation:cur .8s steps(2) infinite}@keyframes cur{50%{opacity:0}}');
+}
+
 // --------------------------------------------------------------------- data
 async function fetchStats() {
   const token = process.env.GITHUB_TOKEN;
@@ -370,6 +473,8 @@ async function fetchStats() {
     pullRequests{totalCount} issues{totalCount}
     repositories(first:100,ownerAffiliations:OWNER,isFork:false,privacy:PUBLIC){totalCount nodes{stargazerCount
       languages(first:10,orderBy:{field:SIZE,direction:DESC}){edges{size node{name color}}}}}
+    recent:repositories(first:8,ownerAffiliations:OWNER,privacy:PUBLIC,orderBy:{field:PUSHED_AT,direction:DESC}){nodes{name
+      defaultBranchRef{target{... on Commit{messageHeadline committedDate}}}}}
     contributionsCollection{totalCommitContributions contributionCalendar{totalContributions
       weeks{contributionDays{contributionCount contributionLevel date weekday}}}}}}`;
   const res = await fetch('https://api.github.com/graphql', {
@@ -423,6 +528,14 @@ async function fetchStats() {
       ['Followers', u.followers.totalCount],
     ],
     langs: all.slice(0, 4).map((l) => ({ name: l.name, color: l.color, ratio: l.size / totalSize })),
+    quests: u.recent.nodes
+      .filter((r) => r.name.toLowerCase() !== u.login.toLowerCase() && r.defaultBranchRef?.target)
+      .slice(0, 4)
+      .map((r) => ({
+        name: r.name,
+        message: r.defaultBranchRef.target.messageHeadline,
+        date: new Date(r.defaultBranchRef.target.committedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }),
+      })),
     weeks: cal.weeks.map((w) => w.contributionDays.map((d) => ({ weekday: d.weekday, level: d.contributionLevel }))),
   };
 }
@@ -434,7 +547,7 @@ const save = (name, content) => { writeFileSync(join(out, name), content); conso
 
 save('header.svg', header());
 save('dialog.svg', dialog([
-  ['A wild ANDREA appeared!', 'It seems to be writing code...'],
+  [`A wild ${ENEMY.name.toUpperCase()} appeared!`, 'ANDREA sends out WARRIOR!'],
   ['ANDREA used GIT PUSH --FORCE!', "It's not very effective..."],
   ['ANDREA is building RODENT HEROES,', 'an RPG about very brave mice.'],
   ['Scroll down to check the party,', 'the quests and the inventory.'],
@@ -446,7 +559,21 @@ save('title-inventory.svg', title('Inventory'));
 save('title-contact.svg', title('Contact'));
 save('quest-rodent.svg', questRodent());
 save('quest-lumen.svg', questLumen());
+save('about.svg', about([
+  "I'm Andrea, a developer at *Startit Srl*.",
+  '',
+  'By day I ship software. By night I build *Rodent Heroes*,',
+  'a 2D pixel art RPG where very small rodents fight',
+  'very large monsters.',
+  '',
+  'I grew up on a grey Game Boy Advance SP and a copy of',
+  'Pokemon Ruby. It shows.',
+]));
+save('inventory.svg', inventory());
+save('footer.svg', footer());
+console.log(`phase: ${PHASE}, enemy: ${ENEMY.name}`);
 
 const stats = await fetchStats();
 save('card.svg', card(stats));
 save('loop.svg', loop(stats));
+save('quest-log.svg', questLog(stats.quests));
