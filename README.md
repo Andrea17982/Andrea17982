@@ -8,18 +8,18 @@
 I'm Andrea, a developer at **Startit Srl**.
 
 By day I ship software. By night I build **Rodent Heroes**, a 2D pixel art RPG
-where very small heroes fight very large slimes.
+where very small rodents fight very large monsters.
 
 I grew up on a grey Game Boy Advance SP and a copy of Pokémon Ruby. It shows.
 
 <picture><img src="assets/title-status.svg" width="100%" alt="Status" /></picture>
 
-<img src="assets/card.svg" width="100%" alt="Trainer card: my GitHub stats as an RPG character sheet, with level, streak, commits and most used languages." />
-<img src="assets/loop.svg" width="100%" alt="My contribution calendar for the last 12 months, with a mouse warrior walking across it." />
+<picture><img src="assets/card.svg" width="100%" alt="Trainer card: my GitHub stats as an RPG character sheet, with level, streak, commits and most used languages." /></picture>
+<picture><img src="assets/loop.svg" width="100%" alt="My contribution calendar for the last 12 months, with the squares dropping into place like Tetris blocks." /></picture>
 
 <picture><img src="assets/title-quests.svg" width="100%" alt="Quests" /></picture>
 
-<img src="assets/quest-rodent.svg" width="100%" alt="Rodent Heroes, in development: a 2D pixel art RPG. Godot 2D client and authoritative TypeScript backend. Party: warrior, mage, assassin, barbarian, reaper." />
+<img src="assets/quest-rodent.svg" width="100%" alt="Rodent Heroes, in development: a 2D pixel art RPG where small rodents fight large monsters. Godot 2D client and authoritative TypeScript backend. Party: warrior, mage, assassin, barbarian, reaper." />
 <a href="https://github.com/Andrea17982/Lumen"><img src="assets/quest-lumen.svg" width="100%" alt="Lumen, early alpha: a desktop workspace for Claude Code and Codex, written by AI. Tauri 2, Rust, React. Open repo." /></a>
 
 [All repositories →](https://github.com/Andrea17982?tab=repositories)

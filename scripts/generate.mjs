@@ -301,28 +301,33 @@ function card(s) {
 
 // ------------------------------------------------------- contribution "loop"
 function loop(s) {
-  const H = 152, CELL = 7, X0 = Math.round((W - s.weeks.length * CELL + 1) / 2), Y0 = 96, T = 26, WALK = 0.72;
+  const CELL = 7, X0 = Math.round((W - s.weeks.length * CELL + 1) / 2), Y0 = 40, H = Y0 + 7 * CELL + 10, T = 20;
   const LEVEL = { NONE: P.ink, FIRST_QUARTILE: '#4a4a30', SECOND_QUARTILE: P.moss, THIRD_QUARTILE: P.ochre, FOURTH_QUARTILE: P.red };
+  const rand = rng(5);
   let b = frame(4, 2, W - 8, H - 4);
   b += text('The loop ~ last 12 months', 16, 12, P.ochre) + text(`${s.total} contributions`, W - 16, 12, P.bone, 1, 'r');
-  const from = -FRAME, to = W, speed = (to - from) / (T * WALK); // px per second
+  b += text('less', X0, 26, P.dim);
+  Object.values(LEVEL).forEach((c, i) => (b += R(X0 + 28 + i * 8, 26, 6, 6, c)));
+  b += text('more', X0 + 72, 26, P.dim);
+  // empty board first, then the blocks: they drop in like Tetris pieces, bottom rows first,
+  // left to right, stay for a while, get cleared and drop again
+  let board = '', blocks = '';
   s.weeks.forEach((week, c) => {
     const x = X0 + c * CELL;
-    week.forEach((day) => (b += R(x, Y0 + day.weekday * CELL, CELL - 1, CELL - 1, LEVEL[day.level] ?? P.ink)));
-    // the column flashes when the hero walks over it
-    const at = (x + 3 - (from + FRAME / 2)) / speed;
-    b += R(x, Y0, CELL - 1, 7 * CELL - 1, '#fff', ` class="hit" style="animation-delay:${at.toFixed(2)}s"`);
+    week.forEach((day) => {
+      const y = Y0 + day.weekday * CELL;
+      board += R(x, y, CELL - 1, CELL - 1, P.ink);
+      if (day.level === 'NONE') return;
+      const delay = c * 0.05 + (6 - day.weekday) * 0.13 + rand() * 0.25;
+      blocks += `<g class="drop" style="animation-delay:${delay.toFixed(2)}s">` +
+        R(x, y, CELL - 1, CELL - 1, LEVEL[day.level]) + R(x, y, CELL - 1, 1, 'rgba(255,255,255,.22)') + '</g>';
+    });
   });
-  b += text('less', X0, 86, P.dim);
-  Object.values(LEVEL).forEach((c, i) => (b += R(X0 + 28 + i * 8, 86, 6, 6, c)));
-  b += text('more', X0 + 72, 86, P.dim);
-  b += `<g class="walk">${put('warrior-idle', 0, 4, { fps: 12 })}</g>`;
-  b += `<g class="flyby">${put('bat-idle', 0, -12, { fps: 11 })}</g>`;
-  const { defs, css } = spriteDefs(['warrior-idle', 'bat-idle']);
-  return svg(H, `<clipPath id="in"><rect x="6" y="4" width="${W - 12}" height="${H - 8}"/></clipPath>${defs}<g clip-path="url(#in)">${b}</g>`, css +
-    `.walk{animation:walk ${T}s linear infinite}@keyframes walk{0%{transform:translateX(${from}px)}${WALK * 100}%,100%{transform:translateX(${to}px)}}` +
-    `.hit{opacity:0;animation:hit ${T}s linear infinite}@keyframes hit{0%{opacity:.6}2.5%,100%{opacity:0}}` +
-    `.flyby{animation:flyby ${T * 0.6}s linear infinite}@keyframes flyby{from{transform:translateX(${W}px)}to{transform:translateX(${-FRAME}px)}}`);
+  b += board + blocks;
+  return svg(H, `<clipPath id="in"><rect x="6" y="4" width="${W - 12}" height="${H - 8}"/></clipPath><g clip-path="url(#in)">${b}</g>`,
+    `.drop{opacity:0;animation:drop ${T}s linear infinite}` +
+    `@keyframes drop{0%{opacity:1;transform:translateY(-${Y0 + 7 * CELL}px);animation-timing-function:steps(12)}` +
+    `5%{transform:none}5.4%{transform:translateY(-1px)}5.8%{transform:none}78%{opacity:1;filter:none}79%{filter:brightness(3)}80%{opacity:1}80.01%,100%{opacity:0}}`);
 }
 
 // ----------------------------------------------------------- small pieces
@@ -336,7 +341,7 @@ function questRodent() {
   const H = 140, SCALE = 0.7, SIZE = FRAME * SCALE;
   let b = frame(4, 2, W - 8, H - 4);
   b += shadowText('Rodent Heroes', 16, 12, P.gold, P.brick, 2) + text('In development', W - 16, 16, P.red, 1, 'r');
-  b += text('A 2D pixel art RPG about small heroes and very large slimes.', 16, 32, P.bone);
+  b += text('A 2D pixel art RPG where small rodents fight large monsters.', 16, 32, P.bone);
   b += text('Godot 2D client ~ authoritative TypeScript backend', 16, 44, P.dim);
   for (let i = 0; i < 3; i++) b += R(8, 104 + i * 6, W - 16, 6, ['#19251b', '#1c2a1e', '#1f2f21'][i]);
   const party = [['warrior', 'Warrior'], ['mage', 'Mage'], ['assassin', 'Assassin'], ['barbarian', 'Barbarian'], ['reaper', 'Reaper']];
