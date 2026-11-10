@@ -148,12 +148,12 @@ function spriteDefs(names) {
   return { defs: `<defs>${defs.join('')}</defs>`, css };
 }
 /** One (animated) sprite, top-left of its 101x101 frame at x,y. */
-function put(name, x, y, { fps = 9, delay = 0, flip = false } = {}) {
+function put(name, x, y, { fps = 9, delay = 0, flip = false, scale = 1 } = {}) {
   const s = sprite(name);
   const anim = s.frames > 1
     ? ` style="animation:f${s.frames} ${(s.frames / fps).toFixed(2)}s steps(${s.frames}) ${-delay}s infinite"`
     : '';
-  const inner = `<svg x="${flip ? 0 : x}" y="${flip ? 0 : y}" width="${FRAME}" height="${FRAME}" viewBox="0 0 ${FRAME} ${FRAME}"><use href="#s-${name}"${anim}/></svg>`;
+  const inner = `<svg x="${flip ? 0 : x}" y="${flip ? 0 : y}" width="${FRAME * scale}" height="${FRAME * scale}" viewBox="0 0 ${FRAME} ${FRAME}"><use href="#s-${name}"${anim}/></svg>`;
   return flip ? `<g transform="translate(${x + FRAME} ${y}) scale(-1 1)">${inner}</g>` : inner;
 }
 
@@ -332,33 +332,19 @@ function title(label) {
   for (let x = w + 4; x < W - 2; x += 6) b += R(x, 12, 3, 2, P.dim);
   return svg(H, b);
 }
-function divider(walkers) {
-  const H = 62;
-  let b = '';
-  for (let x = 0; x < W; x += 6) b += R(x, H - 3, 3, 2, P.dim);
-  walkers.forEach((w2, i) => {
-    b += `<g class="go" style="animation-duration:${w2.secs}s;animation-delay:${-w2.secs * (w2.offset ?? 0)}s">` +
-      `<g${w2.bob ? ' class="bob"' : ''}>${put(w2.name, 0, w2.y, { fps: w2.fps ?? 9, delay: i * 0.2 })}</g></g>`;
-  });
-  const { defs, css } = spriteDefs(walkers.map((w2) => w2.name));
-  return svg(H, defs + b, css +
-    `.go{animation:go linear infinite}@keyframes go{from{transform:translateX(${W}px)}to{transform:translateX(${-FRAME}px)}}` +
-    `.bob{animation:bob 1.4s steps(4) infinite alternate}@keyframes bob{to{transform:translateY(5px)}}`);
-}
 function questRodent() {
-  const H = 152;
+  const H = 140, SCALE = 0.7, SIZE = FRAME * SCALE;
   let b = frame(4, 2, W - 8, H - 4);
   b += shadowText('Rodent Heroes', 16, 12, P.gold, P.brick, 2) + text('In development', W - 16, 16, P.red, 1, 'r');
   b += text('A 2D pixel art RPG about small heroes and very large slimes.', 16, 32, P.bone);
   b += text('Godot 2D client ~ authoritative TypeScript backend', 16, 44, P.dim);
-  for (let i = 0; i < 3; i++) b += R(8, 118 + i * 9, W - 16, 9, ['#19251b', '#1c2a1e', '#1f2f21'][i]);
+  for (let i = 0; i < 3; i++) b += R(8, 104 + i * 6, W - 16, 6, ['#19251b', '#1c2a1e', '#1f2f21'][i]);
   const party = [['warrior', 'Warrior'], ['mage', 'Mage'], ['assassin', 'Assassin'], ['barbarian', 'Barbarian'], ['reaper', 'Reaper']];
   party.forEach(([name, label], i) => {
-    const x = 6 + i * 58;
-    b += put(name, x, 38) + text(label, x + 50, 132, P.bone, 1, 'c');
+    const cx = Math.round((W * (i + 1)) / (party.length + 1)); // evenly spaced, symmetric
+    b += put(name, Math.round(cx - SIZE / 2), 54, { scale: SCALE }) + text(label, cx, 124, P.bone, 1, 'c');
   });
-  b += put('slime-water-idle', 310, 40) + text('???', 360, 132, P.red, 1, 'c');
-  const { defs, css } = spriteDefs([...party.map((p) => p[0]), 'slime-water-idle']);
+  const { defs, css } = spriteDefs(party.map((p) => p[0]));
   return svg(H, defs + b, css);
 }
 function questLumen() {
@@ -452,14 +438,6 @@ save('title-status.svg', title('Status'));
 save('title-quests.svg', title('Quests'));
 save('title-inventory.svg', title('Inventory'));
 save('title-contact.svg', title('Contact'));
-save('divider-a.svg', divider([
-  { name: 'bat-idle', y: -34, secs: 13, fps: 11, bob: true },
-  { name: 'slime-fire-idle', y: -27, secs: 26, offset: 0.4 },
-]));
-save('divider-b.svg', divider([
-  { name: 'frog-idle', y: -27, secs: 22 },
-  { name: 'beetle-idle', y: -27, secs: 30, offset: 0.55 },
-]));
 save('quest-rodent.svg', questRodent());
 save('quest-lumen.svg', questLumen());
 
