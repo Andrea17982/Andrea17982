@@ -312,21 +312,22 @@ function loop(s) {
   // empty board first, then the blocks: they drop in like Tetris pieces, bottom rows first,
   // left to right, stay for a while, get cleared and drop again
   let board = '', blocks = '';
+  const first = Math.max(0, s.weeks.findIndex((w) => w.some((d) => d.level !== 'NONE'))); // start where the activity starts
   s.weeks.forEach((week, c) => {
     const x = X0 + c * CELL;
     week.forEach((day) => {
       const y = Y0 + day.weekday * CELL;
       board += R(x, y, CELL - 1, CELL - 1, P.ink);
       if (day.level === 'NONE') return;
-      const delay = c * 0.05 + (6 - day.weekday) * 0.13 + rand() * 0.25;
+      const delay = (c - first) * 0.05 + (6 - day.weekday) * 0.13 + rand() * 0.25;
       blocks += `<g class="drop" style="animation-delay:${delay.toFixed(2)}s">` +
         R(x, y, CELL - 1, CELL - 1, LEVEL[day.level]) + R(x, y, CELL - 1, 1, 'rgba(255,255,255,.22)') + '</g>';
     });
   });
-  b += board + blocks;
-  return svg(H, `<clipPath id="in"><rect x="6" y="4" width="${W - 12}" height="${H - 8}"/></clipPath><g clip-path="url(#in)">${b}</g>`,
+  b += board + `<g clip-path="url(#board)">${blocks}</g>`;
+  return svg(H, `<clipPath id="in"><rect x="6" y="4" width="${W - 12}" height="${H - 8}"/></clipPath><clipPath id="board"><rect x="0" y="${Y0 - 1}" width="${W}" height="${7 * CELL + 1}"/></clipPath><g clip-path="url(#in)">${b}</g>`,
     `.drop{opacity:0;animation:drop ${T}s linear infinite}` +
-    `@keyframes drop{0%{opacity:1;transform:translateY(-${Y0 + 7 * CELL}px);animation-timing-function:steps(12)}` +
+    `@keyframes drop{0%{opacity:1;transform:translateY(-${7 * CELL + 2}px);animation-timing-function:steps(12)}` +
     `5%{transform:none}5.4%{transform:translateY(-1px)}5.8%{transform:none}78%{opacity:1;filter:none}79%{filter:brightness(3)}80%{opacity:1}80.01%,100%{opacity:0}}`);
 }
 
